@@ -1,0 +1,58 @@
+{
+  "Citizen_12": {
+    "description": "Swiss-type automatic lathe Citizen 12mm",
+    "rapid_traverse_mm_min": 15000,
+    "tool_change_time_s": 1.2,
+    "cutoff_time_s": 4.5,
+    "re_grip_time_s": 3.0,
+    "ejection_time_s": 1.5
+  },
+  "Citizen_20": {
+    "description": "Swiss-type automatic lathe Citizen 20mm",
+    "rapid_traverse_mm_min": 20000,
+    "tool_change_time_s": 1.5,
+    "cutoff_time_s": 5.0,
+    "re_grip_time_s": 3.5,
+    "ejection_time_s": 2.0
+  },
+  "Star_20": {
+    "description": "Star CNC Swiss-type Lathe 20mm",
+    "rapid_traverse_mm_min": 24000,
+    "tool_change_time_s": 0.9,
+    "cutoff_time_s": 4.0,
+    "re_grip_time_s": 2.8,
+    "ejection_time_s": 1.8
+  },
+  "Star_12": {
+    "description": "Star CNC Swiss-type Lathe 12mm",
+    "rapid_traverse_mm_min": 18000,
+    "tool_change_time_s": 0.8,
+    "cutoff_time_s": 3.5,
+    "re_grip_time_s": 2.5,
+    "ejection_time_s": 1.2
+  },
+  "Nomura": {
+    "description": "Nomura Swiss-style CNC Lathe",
+    "rapid_traverse_mm_min": 20000,
+    "tool_change_time_s": 1.1,
+    "cutoff_time_s": 4.8,
+    "re_grip_time_s": 3.2,
+    "ejection_time_s": 1.6
+  },
+  "Takang": {
+    "description": "Takang CNC Lathe",
+    "rapid_traverse_mm_min": 12000,
+    "tool_change_time_s": 2.0,
+    "cutoff_time_s": 6.0,
+    "re_grip_time_s": 4.5,
+    "ejection_time_s": 2.5
+  },
+  "Tsugami": {
+    "description": "Tsugami Swiss-type Precision Lathe",
+    "rapid_traverse_mm_min": 32000,
+    "tool_change_time_s": 0.7,
+    "cutoff_time_s": 3.0,
+    "re_grip_time_s": 2.2,
+    "ejection_time_s": 1.0
+  }
+}
