@@ -66,8 +66,8 @@ class App(ctk.CTk):
         # Main Content: Side-by-Side Spindles
         self.content_frame = ctk.CTkFrame(self)
         self.content_frame.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="nsew")
-        self.content_frame.grid_columnconfigure(0, weight=1)
-        self.content_frame.grid_columnconfigure(1, weight=1)
+        self.content_frame.grid_columnconfigure(0, weight=1, uniform="spindles")
+        self.content_frame.grid_columnconfigure(1, weight=1, uniform="spindles")
         self.content_frame.grid_rowconfigure(0, weight=1)
         
         # Initialize Spindle Frames

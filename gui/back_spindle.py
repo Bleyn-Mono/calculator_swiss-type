@@ -136,15 +136,15 @@ class BackSpindleFrame(ctk.CTkFrame):
 
         # Grid configuration for compact layout
         for i in range(4):
-            self.fields_frame.grid_columnconfigure(i, weight=1)
+            self.fields_frame.grid_columnconfigure(i, weight=0) # Changed to weight=0 to keep fields compact
 
         fields = field_configs.get(op_type, [])
         for i, (key, label) in enumerate(fields):
             row = i // 4 * 2
             col = i % 4
             ctk.CTkLabel(self.fields_frame, text=label, font=("Arial", 11)).grid(row=row, column=col, padx=5, sticky="w")
-            entry = ctk.CTkEntry(self.fields_frame, height=28)
-            entry.grid(row=row+1, column=col, padx=5, pady=(0, 5), sticky="ew")
+            entry = ctk.CTkEntry(self.fields_frame, height=28, width=70) # Fixed small width
+            entry.grid(row=row+1, column=col, padx=5, pady=(0, 5), sticky="w") # Sticky west instead of ew
             self.entries[key] = entry
 
         # Comment field - separate row, full width
@@ -245,7 +245,14 @@ class BackSpindleFrame(ctk.CTkFrame):
             # Bottom row: Comment (if exists)
             comment = res["details"].get("comment", "")
             if comment:
-                comment_label = ctk.CTkLabel(block, text=f"💬 {comment}", font=("Arial", 11, "italic"), text_color="#AAAAAA")
+                comment_label = ctk.CTkLabel(
+                    block, 
+                    text=f"💬 {comment}", 
+                    font=("Arial", 11, "italic"), 
+                    text_color="#AAAAAA",
+                    wraplength=550, # Enable wrapping for long comments
+                    justify="left"
+                )
                 comment_label.pack(side="left", padx=15, pady=(0, 5))
             
         self.total_time_label.configure(text=f"TOTAL TIME: {self.session.get_total_time():.2f} min")
