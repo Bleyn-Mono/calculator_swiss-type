@@ -96,16 +96,27 @@ class DrillingQCalculator:
     @staticmethod
     def calculate(op: DrillingQOp, machine: MachineConfig) -> float:
         """
-        Calculates time for peck drilling. 
-        Note: Currently follows the 1.3 total path rule for simplicity,
-        assuming the total path covers the multiple entries/retracts.
+        Calculates time for peck drilling by accounting for multiple 
+        retracts and re-entries.
         """
-        return BaseCalculator.calculate_turning_time(
-            op.drilling_depth,
-            op.spindle_speed,
-            op.feed_rate,
-            machine['rapid_traverse_mm_min']
-        )
+        if op.peck_depth <= 0:
+            return 0.0
+            
+        n_pecks = math.ceil(op.drilling_depth / op.peck_depth)
+        
+        # Working time is the same as standard drilling
+        t_work = 0.0
+        if op.spindle_speed > 0 and op.feed_rate > 0:
+            t_work = op.drilling_depth / (op.spindle_speed * op.feed_rate)
+            
+        # Rapid traverse time is significantly higher due to retracts.
+        # Approximation: Each peck i travels i*Q to retract and back.
+        # Sum(2 * i * Q) for i=1 to n_pecks = 2 * Q * (n_pecks * (n_pecks + 1) / 2)
+        # = Q * n_pecks * (n_pecks + 1)
+        rapid_path = op.peck_depth * n_pecks * (n_pecks + 1)
+        t_rapid = rapid_path / machine['rapid_traverse_mm_min']
+        
+        return t_work + t_rapid
 
 
 class WhirlingCalculator:

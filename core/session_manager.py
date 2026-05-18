@@ -1,5 +1,5 @@
 """
-This module provides a SessionManager class for temporary storage of calculation results.
+This module provides a SessionManager class for of calculation results.
 Following the SoC principle, this class handles data persistence until report generation.
 Supports multi-channel operation (e.g., Main and Back Spindles).
 """
@@ -48,6 +48,16 @@ class SessionManager:
             List[Dict[str, Any]]: A list of operation results.
         """
         return self._results
+
+    def remove_result(self, index: int) -> None:
+        """
+        Removes a result from the session by its index.
+        
+        Args:
+            index (int): The 0-based index of the result to remove.
+        """
+        if 0 <= index < len(self._results):
+            self._results.pop(index)
 
     def clear_session(self) -> None:
         """Clears all stored results."""

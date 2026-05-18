@@ -22,7 +22,7 @@ class App(ctk.CTk):
         super().__init__()
 
         self.title("Swiss-Type Machining Calculator")
-        self.geometry("1100x700")
+        self.geometry("1300x800")
 
         # 1. Initialize Data
         self.configs: Dict[str, MachineConfig] = ConfigLoader.load_config()
@@ -34,6 +34,12 @@ class App(ctk.CTk):
 
         # 2. Setup UI
         self._setup_ui()
+
+        # 3. Set Default Machine
+        if self.configs:
+            first_machine = list(self.configs.keys())[0]
+            self.machine_selector.set(first_machine)
+            self._on_machine_selected(first_machine)
 
     def _setup_ui(self) -> None:
         """Configures the main layout and widgets."""
@@ -57,19 +63,19 @@ class App(ctk.CTk):
         self.filename_entry = ctk.CTkEntry(self.top_bar, placeholder_text="Enter filename...")
         self.filename_entry.pack(side="left", padx=5, fill="x", expand=True)
 
-        # Main Content: Tabs for Spindles
-        self.tabview = ctk.CTkTabview(self)
-        self.tabview.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="nsew")
-        
-        self.tab_main = self.tabview.add("Main Spindle")
-        self.tab_back = self.tabview.add("Back Spindle")
+        # Main Content: Side-by-Side Spindles
+        self.content_frame = ctk.CTkFrame(self)
+        self.content_frame.grid(row=1, column=0, padx=10, pady=(0, 10), sticky="nsew")
+        self.content_frame.grid_columnconfigure(0, weight=1)
+        self.content_frame.grid_columnconfigure(1, weight=1)
+        self.content_frame.grid_rowconfigure(0, weight=1)
         
         # Initialize Spindle Frames
-        self.main_frame = MainSpindleFrame(self.tab_main, session=self.main_session, get_machine_config=self.get_active_config)
-        self.main_frame.pack(fill="both", expand=True)
+        self.main_frame = MainSpindleFrame(self.content_frame, session=self.main_session, get_machine_config=self.get_active_config)
+        self.main_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
         
-        self.back_frame = BackSpindleFrame(self.tab_back, session=self.back_session, get_machine_config=self.get_active_config)
-        self.back_frame.pack(fill="both", expand=True)
+        self.back_frame = BackSpindleFrame(self.content_frame, session=self.back_session, get_machine_config=self.get_active_config)
+        self.back_frame.grid(row=0, column=1, padx=5, pady=5, sticky="nsew")
 
         # Bottom Bar: Report Generation
         self.bottom_bar = ctk.CTkFrame(self)

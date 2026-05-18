@@ -15,10 +15,12 @@ class FacingOp:
         workpiece_diameter (float): Diameter of the workpiece in mm.
         spindle_speed (float): Rotation speed in RPM.
         feed_rate (float): Feed rate in mm/rev.
+        comment (str): Optional comment.
     """
     workpiece_diameter: float
     spindle_speed: float
     feed_rate: float
+    comment: str = ""
 
 
 @dataclass
@@ -32,12 +34,14 @@ class TurningOp:
         processing_length (float): Length of the machining path in mm.
         spindle_speed (float): Rotation speed in RPM.
         feed_rate (float): Feed rate in mm/rev.
+        comment (str): Optional comment.
     """
     removal_depth: float
     cut_depth: float
     processing_length: float
     spindle_speed: float
     feed_rate: float
+    comment: str = ""
 
 
 @dataclass
@@ -49,14 +53,14 @@ class MillingOp:
         removal_depth (float): Total depth of material to be removed in mm.
         cut_depth (float): Depth of a single cut in mm.
         processing_length (float): Length of the machining path in mm.
-        spindle_speed (float): Rotation speed in RPM.
         feed_rate (float): Feed rate in mm/min.
+        comment (str): Optional comment.
     """
     removal_depth: float
     cut_depth: float
     processing_length: float
-    spindle_speed: float
     feed_rate: float
+    comment: str = ""
 
 
 @dataclass
@@ -68,10 +72,12 @@ class DrillingG1Op:
         drilling_depth (float): Total depth of the hole in mm.
         spindle_speed (float): Rotation speed in RPM.
         feed_rate (float): Feed rate in mm/rev.
+        comment (str): Optional comment.
     """
     drilling_depth: float
     spindle_speed: float
     feed_rate: float
+    comment: str = ""
 
 
 @dataclass
@@ -84,11 +90,13 @@ class DrillingQOp:
         peck_depth (float): Depth of each peck (Q value) in mm.
         spindle_speed (float): Rotation speed in RPM.
         feed_rate (float): Feed rate in mm/rev.
+        comment (str): Optional comment.
     """
     drilling_depth: float
     peck_depth: float
     spindle_speed: float
     feed_rate: float
+    comment: str = ""
 
 
 @dataclass
@@ -99,9 +107,11 @@ class WhirlingOp:
     Attributes:
         processing_length (float): Length of the machining path in mm.
         feed_rate (float): Feed rate in mm/rev or mm/min.
+        comment (str): Optional comment.
     """
     processing_length: float
     feed_rate: float
+    comment: str = ""
 
 
 @dataclass
@@ -115,9 +125,11 @@ class ThreadingOp:
         spindle_speed (float): Rotation speed in RPM.
         feed_rate (float): Thread pitch in mm/rev.
         passes_count (int): Number of threading passes.
+        comment (str): Optional comment.
     """
     workpiece_diameter: float
     processing_length: float
     spindle_speed: float
     feed_rate: float
     passes_count: int
+    comment: str = ""
