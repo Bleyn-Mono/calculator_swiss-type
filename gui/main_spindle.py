@@ -138,23 +138,24 @@ class MainSpindleFrame(ctk.CTkFrame):
         }
 
         # Grid configuration for compact layout
-        for i in range(4):
-            self.fields_frame.grid_columnconfigure(i, weight=0) # Changed to weight=0 to keep fields compact
+        for i in range(5):
+            self.fields_frame.grid_columnconfigure(i, weight=0) # Changed to 5 columns
 
         fields = field_configs.get(op_type, [])
         for i, (key, label) in enumerate(fields):
-            row = i // 4 * 2
-            col = i % 4
+            row = i // 5 * 2
+            col = i % 5
             ctk.CTkLabel(self.fields_frame, text=label, font=("Arial", 11)).grid(row=row, column=col, padx=5, sticky="w")
             entry = ctk.CTkEntry(self.fields_frame, height=28, width=70) # Fixed small width
             entry.grid(row=row+1, column=col, padx=5, pady=(0, 5), sticky="w") # Sticky west instead of ew
             self.entries[key] = entry
 
         # Comment field - separate row, full width
-        next_row = (len(fields) - 1) // 4 * 2 + 2
-        ctk.CTkLabel(self.fields_frame, text="Comment:").grid(row=next_row, column=0, columnspan=4, padx=5, sticky="w")
+        next_row = (len(fields) - 1) // 5 * 2 + 2
+        ctk.CTkLabel(self.fields_frame, text="Comment:").grid(row=next_row, column=0, columnspan=5, padx=5, sticky="w")
         self.comment_entry = ctk.CTkEntry(self.fields_frame, placeholder_text="Enter optional comment...")
-        self.comment_entry.grid(row=next_row+1, column=0, columnspan=4, padx=5, pady=(0, 5), sticky="ew")
+        self.comment_entry.grid(row=next_row+1, column=0, columnspan=5, padx=5, pady=(0, 5), sticky="ew")
+
 
     def _add_operation(self) -> None:
         """Validates input, calculates time, and adds to session."""
