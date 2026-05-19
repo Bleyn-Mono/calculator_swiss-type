@@ -3,6 +3,8 @@ UI Frame for the Main Spindle operations.
 """
 
 import customtkinter as ctk
+import os
+from PIL import Image
 from typing import Callable, Optional, Dict, Any
 from core.session_manager import SessionManager
 from utils.config_loader import MachineConfig
@@ -45,34 +47,29 @@ class MainSpindleFrame(ctk.CTkFrame):
         
         ctk.CTkLabel(self.input_container, text="Main Spindle", font=("Arial", 16, "bold")).pack(pady=5)
         
-        # Sub-frame for horizontal alignment of type and fields if needed, 
-        # but following user request for "top" placement.
-        ctk.CTkLabel(self.input_container, text="Operation Type:").pack(pady=(5, 0))
+        # Operation Type Selection Row
+        op_type_frame = ctk.CTkFrame(self.input_container, fg_color="transparent")
+        op_type_frame.pack(pady=2)
+        
+        ctk.CTkLabel(op_type_frame, text="Operation Type:").pack(side="left", padx=5)
         self.op_type_var = ctk.StringVar(value="Facing")
         self.op_selector = ctk.CTkOptionMenu(
-            self.input_container, 
+            op_type_frame, 
             values=["Facing", "Turning", "Milling", "Drilling (G1)", "Drilling (Q)", "Whirling", "Threading"],
             variable=self.op_type_var,
             command=self._update_fields
         )
-        self.op_selector.pack(pady=2)
+        self.op_selector.pack(side="left", padx=5)
 
         # Dynamic Fields Container
         self.fields_frame = ctk.CTkFrame(self.input_container, fg_color="transparent")
-        self.fields_frame.pack(fill="x", padx=20, pady=5)
+        self.fields_frame.pack(fill="x", padx=20, pady=2)
         self.entries: Dict[str, ctk.CTkEntry] = {}
         
         self.status_label = ctk.CTkLabel(self.input_container, text="", text_color="red")
-        self.status_label.pack(pady=2)
+        self.status_label.pack(pady=0)
         
         self._update_fields("Facing")
-
-        self.add_btn = ctk.CTkButton(
-            self.input_container, 
-            text="Calculate & Add", 
-            command=self._add_operation
-        )
-        self.add_btn.pack(pady=5)
 
         # 2. Results Area (Bottom)
         self.results_container = ctk.CTkFrame(self)
@@ -150,11 +147,20 @@ class MainSpindleFrame(ctk.CTkFrame):
             entry.grid(row=row+1, column=col, padx=5, pady=(0, 5), sticky="w") # Sticky west instead of ew
             self.entries[key] = entry
 
-        # Comment field - separate row, full width
+        # Comment field and Calculate button
         next_row = (len(fields) - 1) // 5 * 2 + 2
         ctk.CTkLabel(self.fields_frame, text="Comment:").grid(row=next_row, column=0, columnspan=5, padx=5, sticky="w")
+        
         self.comment_entry = ctk.CTkEntry(self.fields_frame, placeholder_text="Enter optional comment...")
-        self.comment_entry.grid(row=next_row+1, column=0, columnspan=5, padx=5, pady=(0, 5), sticky="ew")
+        self.comment_entry.grid(row=next_row+1, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="ew")
+        
+        self.add_btn = ctk.CTkButton(
+            self.fields_frame, 
+            text="Calculate", 
+            command=self._add_operation,
+            width=80
+        )
+        self.add_btn.grid(row=next_row+1, column=4, padx=5, pady=(0, 2), sticky="e")
 
 
     def _add_operation(self) -> None:
@@ -209,30 +215,59 @@ class MainSpindleFrame(ctk.CTkFrame):
             self.status_label.configure(text=f"Error: {str(e)}", text_color="red")
 
     def _refresh_results(self) -> None:
-        """Updates the results frame with styled operation blocks."""
+        """Updates the results frame with styled operation blocks including icons."""
         # Clear existing rows
         for widget in self.results_list_frame.winfo_children():
             widget.destroy()
+        
+        # Mapping for filenames if they differ from operation names
+        file_map = {
+            "Threading": "Treading",
+            "Whirling": "Wirling"
+        }
         
         for i, res in enumerate(self.session.get_results()):
             # Main block for the operation
             block = ctk.CTkFrame(self.results_list_frame, fg_color="#333333", corner_radius=6)
             block.pack(fill="x", pady=4, padx=5)
             
+            # Icon and Content layout
+            content_row = ctk.CTkFrame(block, fg_color="transparent")
+            content_row.pack(fill="x", padx=5, pady=5)
+            
+            # 1. Icon (Left side)
+            op_name = res['operation']
+            filename = file_map.get(op_name, op_name)
+            icon_path = os.path.join("assets", "icons", f"{filename}.png")
+            
+            if os.path.exists(icon_path):
+                try:
+                    img = Image.open(icon_path)
+                    # Fixed icon size to fit the operation block height
+                    ctk_image = ctk.CTkImage(light_image=img, dark_image=img, size=(45, 45))
+                    icon_label = ctk.CTkLabel(content_row, image=ctk_image, text="")
+                    icon_label.pack(side="left", padx=(5, 10))
+                except Exception:
+                    # Fallback if image fails to load
+                    pass
+
+            # 2. Text Content (Right of icon)
+            text_container = ctk.CTkFrame(content_row, fg_color="transparent")
+            text_container.pack(side="left", fill="both", expand=True)
+            
             # Top row: Type, Params | Time, Delete
-            header_row = ctk.CTkFrame(block, fg_color="transparent")
-            header_row.pack(fill="x", padx=10, pady=(5, 0))
+            header_row = ctk.CTkFrame(text_container, fg_color="transparent")
+            header_row.pack(fill="x")
             
             # Format parameters string
             params = []
             for k, v in res["details"].items():
                 if k != "comment":
-                    # Shorten key for display
                     short_k = k.replace("workpiece_", "").replace("processing_", "").replace("spindle_", "").replace("feed_", "F").replace("rate", "").replace("speed", "S").replace("diameter", "D").replace("depth", "H").replace("length", "L").replace("removal_", "Tot").replace("cut_", "Cut")
                     params.append(f"{short_k}{v:g}")
             params_str = " ".join(params)
             
-            label_text = f"{i+1}. {res['operation']} ({params_str}) | {res['time_min']:.2f} min"
+            label_text = f"{i+1}. {op_name} ({params_str}) | {res['time_min']:.2f} min"
             ctk.CTkLabel(header_row, text=label_text, font=("Arial", 12, "bold")).pack(side="left")
             
             del_btn = ctk.CTkButton(
@@ -246,18 +281,18 @@ class MainSpindleFrame(ctk.CTkFrame):
             )
             del_btn.pack(side="right")
             
-            # Bottom row: Comment (if exists)
+            # Bottom row: Comment
             comment = res["details"].get("comment", "")
             if comment:
                 comment_label = ctk.CTkLabel(
-                    block, 
+                    text_container, 
                     text=f"💬 {comment}", 
                     font=("Arial", 11, "italic"), 
                     text_color="#AAAAAA",
-                    wraplength=550, # Enable wrapping for long comments
+                    wraplength=450, # Slightly reduced for icon space
                     justify="left"
                 )
-                comment_label.pack(side="left", padx=15, pady=(0, 5))
+                comment_label.pack(side="left", pady=(2, 0))
             
         self.total_time_label.configure(text=f"TOTAL TIME: {self.session.get_total_time():.2f} min")
 
