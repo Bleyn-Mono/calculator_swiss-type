@@ -8,8 +8,9 @@ from typing import Dict, Optional
 from core.session_manager import SessionManager
 from utils.config_loader import ConfigLoader, MachineConfig
 from utils.file_exporter import ReportGenerator, FileExporter
-from gui.main_spindle import MainSpindleFrame
-from gui.back_spindle import BackSpindleFrame
+from utils.report_parser import ReportParser
+from .main_spindle import MainSpindleFrame
+from .back_spindle import BackSpindleFrame
 
 
 class App(ctk.CTk):
@@ -59,6 +60,16 @@ class App(ctk.CTk):
         self.machine_selector.pack(side="left", padx=5)
         self.machine_selector.set("Select...")
 
+        self.open_btn = ctk.CTkButton(
+            self.top_bar, 
+            text="Open Project", 
+            command=self._on_open_project,
+            width=100,
+            fg_color="#555555",
+            hover_color="#777777"
+        )
+        self.open_btn.pack(side="left", padx=10)
+
         ctk.CTkLabel(self.top_bar, text="Project Name:").pack(side="left", padx=(20, 5))
         self.filename_entry = ctk.CTkEntry(self.top_bar, placeholder_text="Enter filename...")
         self.filename_entry.pack(side="left", padx=5, fill="x", expand=True)
@@ -98,6 +109,49 @@ class App(ctk.CTk):
         self.current_machine_name = choice
         self.current_machine_config = self.configs[choice]
         self.status_label.configure(text=f"Selected Machine: {choice}")
+
+    def _on_open_project(self) -> None:
+        """Opens a file dialog to load an existing project report."""
+        file_path = ctk.filedialog.askopenfilename(
+            title="Select Project Report",
+            filetypes=[("Text files", "*.txt"), ("All files", "*.*")]
+        )
+        
+        if not file_path:
+            return
+
+        try:
+            data = ReportParser.parse_file(file_path)
+            
+            # 1. Restore Machine
+            machine_name = data["machine_name"]
+            if machine_name in self.configs:
+                self.machine_selector.set(machine_name)
+                self._on_machine_selected(machine_name)
+            else:
+                self.status_label.configure(text=f"Warning: Machine '{machine_name}' not found!", text_color="orange")
+
+            # 2. Restore Filename
+            self.filename_entry.delete(0, 'end')
+            self.filename_entry.insert(0, data["filename"])
+
+            # 3. Restore Sessions
+            self.main_session.clear_session()
+            for res in data["main_results"]:
+                self.main_session.add_result(res["operation"], res["time_min"], res["details"])
+            
+            self.back_session.clear_session()
+            for res in data["back_results"]:
+                self.back_session.add_result(res["operation"], res["time_min"], res["details"])
+
+            # 4. Refresh UI
+            self.main_frame._refresh_results()
+            self.back_frame._refresh_results()
+            
+            self.status_label.configure(text=f"Project loaded: {data['filename']}", text_color="green")
+
+        except Exception as e:
+            self.status_label.configure(text=f"Error loading project: {str(e)}", text_color="red")
 
     def get_active_config(self) -> Optional[MachineConfig]:
         """Returns the currently selected machine configuration."""

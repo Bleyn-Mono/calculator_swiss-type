@@ -1,6 +1,10 @@
 import json
-import os
-from typing import Dict, Any, TypedDict
+from pathlib import Path
+from typing import Dict, Any
+try:
+    from typing import TypedDict
+except ImportError:
+    from typing_extensions import TypedDict
 
 
 class MachineConfig(TypedDict):
@@ -39,10 +43,11 @@ class ConfigLoader:
             json.JSONDecodeError: If the file is not a valid JSON.
             KeyError: If mandatory fields are missing in the configuration (optional validation).
         """
-        if not os.path.exists(file_path):
+        path = Path(file_path)
+        if not path.exists():
             raise FileNotFoundError(f"Configuration file not found: {file_path}")
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with path.open('r', encoding='utf-8') as f:
             data: Dict[str, Any] = json.load(f)
 
         # In a real-world scenario, we might want to validate that each entry

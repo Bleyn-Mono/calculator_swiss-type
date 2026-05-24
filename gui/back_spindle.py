@@ -3,7 +3,7 @@ UI Frame for the Back Spindle operations.
 """
 
 import customtkinter as ctk
-import os
+from pathlib import Path
 from PIL import Image
 from typing import Callable, Optional, Dict, Any
 from core.session_manager import SessionManager
@@ -12,6 +12,7 @@ from core.operations import (
     FacingOp, TurningOp, MillingOp, DrillingG1Op, 
     DrillingQOp, WhirlingOp, ThreadingOp
 )
+from utils.labels import PARAM_LABELS
 from core.specific_calc import (
     FacingCalculator, TurningCalculator, MillingCalculator, DrillingG1Calculator,
     DrillingQCalculator, WhirlingCalculator, ThreadingCalculator
@@ -32,6 +33,7 @@ class BackSpindleFrame(ctk.CTkFrame):
         super().__init__(master)
         self.session = session
         self.get_machine_config = get_machine_config
+        self.editing_index: Optional[int] = None
         
         self._setup_ui()
 
@@ -135,35 +137,38 @@ class BackSpindleFrame(ctk.CTkFrame):
 
         # Grid configuration for compact layout
         for i in range(5):
-            self.fields_frame.grid_columnconfigure(i, weight=0) # Changed to 5 columns
+            self.fields_frame.grid_columnconfigure(i, weight=0)
 
         fields = field_configs.get(op_type, [])
         for i, (key, label) in enumerate(fields):
             row = i // 5 * 2
             col = i % 5
-            ctk.CTkLabel(self.fields_frame, text=label, font=("Arial", 11)).grid(row=row, column=col, padx=5, sticky="w")
-            entry = ctk.CTkEntry(self.fields_frame, height=28, width=70) # Fixed small width
-            entry.grid(row=row+1, column=col, padx=5, pady=(0, 5), sticky="w") # Sticky west instead of ew
+            # Added pady=(2, 0) to avoid cutoff
+            ctk.CTkLabel(self.fields_frame, text=label, font=("Arial", 11)).grid(row=row, column=col, padx=5, pady=(2, 0), sticky="w")
+            entry = ctk.CTkEntry(self.fields_frame, height=28, width=70)
+            entry.grid(row=row+1, column=col, padx=5, pady=(0, 2), sticky="w")
             self.entries[key] = entry
 
-        # Comment field and Calculate button
+        # Comment field and Calculate button - Compacted
         next_row = (len(fields) - 1) // 5 * 2 + 2
-        ctk.CTkLabel(self.fields_frame, text="Comment:").grid(row=next_row, column=0, columnspan=5, padx=5, sticky="w")
         
-        self.comment_entry = ctk.CTkEntry(self.fields_frame, placeholder_text="Enter optional comment...")
-        self.comment_entry.grid(row=next_row+1, column=0, columnspan=4, padx=5, pady=(0, 2), sticky="ew")
+        self.comment_entry = ctk.CTkEntry(self.fields_frame, placeholder_text="Enter optional comment...", height=28)
+        self.comment_entry.grid(row=next_row, column=0, columnspan=4, padx=5, pady=(5, 2), sticky="ew")
         
         self.add_btn = ctk.CTkButton(
             self.fields_frame, 
-            text="Calculate", 
+            text="Update" if self.editing_index is not None else "Calculate", 
             command=self._add_operation,
-            width=80
+            width=80,
+            height=28,
+            fg_color="#228822" if self.editing_index is not None else "#1f6aa5",
+            hover_color="#1a631a" if self.editing_index is not None else "#144e75"
         )
-        self.add_btn.grid(row=next_row+1, column=4, padx=5, pady=(0, 2), sticky="e")
+        self.add_btn.grid(row=next_row, column=4, padx=5, pady=(5, 2), sticky="e")
 
 
     def _add_operation(self) -> None:
-        """Validates input, calculates time, and adds to session."""
+        """Validates input, calculates time, and adds or updates session."""
         machine_config = self.get_machine_config()
         if not machine_config:
             self.status_label.configure(text="Error: Select machine first!")
@@ -202,11 +207,18 @@ class BackSpindleFrame(ctk.CTkFrame):
             # Store the full operation data including comment
             res_data = data.copy()
             res_data["comment"] = comment
-            self.session.add_result(op_type, time_min, res_data)
+            
+            if self.editing_index is not None:
+                self.session.update_result(self.editing_index, op_type, time_min, res_data)
+                self.status_label.configure(text="Updated successfully!", text_color="green")
+                self.editing_index = None
+            else:
+                self.session.add_result(op_type, time_min, res_data)
+                self.status_label.configure(text="Added successfully!", text_color="green")
             
             self._refresh_results()
-            self.status_label.configure(text="Added successfully!", text_color="green")
-            self.comment_entry.delete(0, 'end') # Clear comment after adding
+            self._update_fields(self.op_type_var.get()) # Reset fields and button text
+            self.comment_entry.delete(0, 'end')
             
         except ValueError:
             self.status_label.configure(text="Error: Invalid numeric input", text_color="red")
@@ -219,55 +231,80 @@ class BackSpindleFrame(ctk.CTkFrame):
         for widget in self.results_list_frame.winfo_children():
             widget.destroy()
         
-        # Mapping for filenames if they differ from operation names
-        file_map = {
-            "Threading": "Treading",
-            "Whirling": "Wirling"
-        }
-        
         for i, res in enumerate(self.session.get_results()):
             # Main block for the operation
-            block = ctk.CTkFrame(self.results_list_frame, fg_color="#333333", corner_radius=6)
+            is_editing = (self.editing_index == i)
+            bg_color = "#505050" if is_editing else "#404040"
+            border_color = "#228822" if is_editing else "#404040"
+            
+            block = ctk.CTkFrame(
+                self.results_list_frame, 
+                fg_color=bg_color, 
+                border_color=border_color,
+                border_width=2 if is_editing else 0,
+                corner_radius=6
+            )
             block.pack(fill="x", pady=4, padx=5)
             
+            # Make the entire block clickable for editing
+            block.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+
             # Icon and Content layout
             content_row = ctk.CTkFrame(block, fg_color="transparent")
             content_row.pack(fill="x", padx=5, pady=5)
+            content_row.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
             
             # 1. Icon (Left side)
             op_name = res['operation']
-            filename = file_map.get(op_name, op_name)
-            icon_path = os.path.join("assets", "icons", f"{filename}.png")
+            icon_path = Path("assets") / "icons" / f"{op_name}.png"
             
-            if os.path.exists(icon_path):
+            if icon_path.exists():
                 try:
                     img = Image.open(icon_path)
-                    # Fixed icon size to fit the operation block height
                     ctk_image = ctk.CTkImage(light_image=img, dark_image=img, size=(45, 45))
                     icon_label = ctk.CTkLabel(content_row, image=ctk_image, text="")
                     icon_label.pack(side="left", padx=(5, 10))
+                    icon_label.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
                 except Exception:
-                    # Fallback if image fails to load
                     pass
 
             # 2. Text Content (Right of icon)
             text_container = ctk.CTkFrame(content_row, fg_color="transparent")
             text_container.pack(side="left", fill="both", expand=True)
+            text_container.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
             
+            # Comment
+            comment = res["details"].get("comment", "")
+            if comment:
+                comment_label = ctk.CTkLabel(
+                    text_container, 
+                    text=f"💬 {comment}", 
+                    font=("Arial", 11, "italic"), 
+                    text_color="#AAAAAA",
+                    wraplength=400,
+                    justify="left",
+                    anchor="w"
+                )
+                comment_label.pack(fill="x", side="top", padx=2, pady=(0, 2))
+                comment_label.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+
             # Top row: Type, Params | Time, Delete
             header_row = ctk.CTkFrame(text_container, fg_color="transparent")
-            header_row.pack(fill="x")
+            header_row.pack(fill="x", side="top")
+            header_row.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
             
             # Format parameters string
             params = []
             for k, v in res["details"].items():
                 if k != "comment":
-                    short_k = k.replace("workpiece_", "").replace("processing_", "").replace("spindle_", "").replace("feed_", "F").replace("rate", "").replace("speed", "S").replace("diameter", "D").replace("depth", "H").replace("length", "L").replace("removal_", "Tot").replace("cut_", "Cut")
-                    params.append(f"{short_k}{v:g}")
+                    label = PARAM_LABELS.get(k, k)
+                    params.append(f"{label}{v:g}")
             params_str = " ".join(params)
             
             label_text = f"{i+1}. {op_name} ({params_str}) | {res['time_min']:.2f} min"
-            ctk.CTkLabel(header_row, text=label_text, font=("Arial", 12, "bold")).pack(side="left")
+            info_label = ctk.CTkLabel(header_row, text=label_text, font=("Arial", 12, "bold"))
+            info_label.pack(side="left")
+            info_label.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
             
             del_btn = ctk.CTkButton(
                 header_row, 
@@ -280,29 +317,37 @@ class BackSpindleFrame(ctk.CTkFrame):
             )
             del_btn.pack(side="right")
             
-            # Bottom row: Comment
-            comment = res["details"].get("comment", "")
-            if comment:
-                comment_label = ctk.CTkLabel(
-                    text_container, 
-                    text=f"💬 {comment}", 
-                    font=("Arial", 11, "italic"), 
-                    text_color="#AAAAAA",
-                    wraplength=450, # Slightly reduced for icon space
-                    justify="left"
-                )
-                comment_label.pack(side="left", pady=(2, 0))
-            
         self.total_time_label.configure(text=f"TOTAL TIME: {self.session.get_total_time():.2f} min")
 
-    def _delete_operation(self, index: int) -> None:
-        """Removes an operation from the session and refreshes the view."""
-        self.session.remove_result(index)
-        self._refresh_results()
-        self.status_label.configure(text="Deleted successfully!", text_color="orange")
+    def _load_operation_to_edit(self, index: int) -> None:
+        """Loads an existing operation into the input fields for editing."""
+        res = self.session.get_results()[index]
+        self.editing_index = index
+        
+        # 1. Set operation type (this will trigger _update_fields)
+        self.op_type_var.set(res["operation"])
+        self._update_fields(res["operation"])
+        
+        # 2. Fill parameter fields
+        for key, value in res["details"].items():
+            if key in self.entries:
+                self.entries[key].delete(0, 'end')
+                self.entries[key].insert(0, str(value))
+        
+        # 3. Fill comment
+        if "comment" in res["details"]:
+            self.comment_entry.delete(0, 'end')
+            self.comment_entry.insert(0, res["details"]["comment"])
+            
+        self.status_label.configure(text=f"Editing operation #{index+1}", text_color="orange")
+        self._refresh_results() # Refresh to show selection highlight
 
     def _delete_operation(self, index: int) -> None:
         """Removes an operation from the session and refreshes the view."""
+        if self.editing_index == index:
+            self.editing_index = None
+            self._update_fields(self.op_type_var.get())
+            
         self.session.remove_result(index)
         self._refresh_results()
         self.status_label.configure(text="Deleted successfully!", text_color="orange")

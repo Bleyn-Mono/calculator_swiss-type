@@ -59,6 +59,24 @@ class SessionManager:
         if 0 <= index < len(self._results):
             self._results.pop(index)
 
+    def update_result(self, index: int, operation_name: str, processing_time: float, details: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Updates an existing operation result in the session.
+        
+        Args:
+            index (int): The 0-based index of the result to update.
+            operation_name (str): The name or type of the operation.
+            processing_time (float): Calculated time for the operation in minutes.
+            details (Dict[str, Any], optional): Additional parameters for the report.
+        """
+        if 0 <= index < len(self._results):
+            self._results[index] = {
+                "channel": self.channel_name,
+                "operation": operation_name,
+                "time_min": processing_time,
+                "details": details or {}
+            }
+
     def clear_session(self) -> None:
         """Clears all stored results."""
         self._results = []

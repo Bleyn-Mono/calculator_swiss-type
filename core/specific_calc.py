@@ -6,11 +6,11 @@ configuration into calls for the BaseCalculator formulas.
 
 import math
 from typing import Any
-from core.operations import (
+from .operations import (
     FacingOp, TurningOp, MillingOp, DrillingG1Op, 
     DrillingQOp, WhirlingOp, ThreadingOp
 )
-from core.base_calculator import BaseCalculator
+from .base_calculator import BaseCalculator
 from utils.config_loader import MachineConfig
 
 

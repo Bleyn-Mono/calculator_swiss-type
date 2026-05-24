@@ -4,9 +4,12 @@ Following the SoC principle, it separates report formatting logic
 (ReportGenerator) from file system operations (FileExporter).
 """
 
-import os
+from pathlib import Path
 from typing import List, Dict, Any
-from utils.config_loader import MachineConfig
+from .config_loader import MachineConfig
+
+
+from .labels import PARAM_LABELS
 
 
 class ReportGenerator:
@@ -29,28 +32,27 @@ class ReportGenerator:
         if not details:
             return ""
         
-        # Mapping internal keys to readable labels
-        labels = {
-            "workpiece_diameter": "D",
-            "spindle_speed": "S",
-            "feed_rate": "F",
-            "removal_depth": "Total Depth",
-            "cut_depth": "Ap",
-            "processing_length": "L",
-            "drilling_depth": "Depth",
-            "passes_count": "Passes"
-        }
-        
         parts = []
         for key, value in details.items():
-            label = labels.get(key, key.replace("_", " ").capitalize())
-            parts.append(f"{label}: {value}")
+            if key == "comment":
+                continue # Comments are handled separately or at the end
+            
+            label = PARAM_LABELS.get(key, key.replace("_", " ").capitalize())
+            if isinstance(value, float):
+                formatted_value = f"{value:g}"
+            else:
+                formatted_value = str(value)
+            parts.append(f"{label}: {formatted_value}")
+            
+        # Add comment at the end if it exists
+        if "comment" in details and details["comment"]:
+            parts.append(f"Comment: {details['comment']}")
             
         return " | " + ", ".join(parts)
 
     @classmethod
     def generate_content(
-        self, 
+        cls, 
         machine_name: str,
         machine_config: MachineConfig,
         main_results: List[Dict[str, Any]],
@@ -80,7 +82,7 @@ class ReportGenerator:
         total_main = sum(res["time_min"] for res in main_results)
         lines.append(f"CHANNEL 1: MAIN SPINDLE")
         for i, res in enumerate(main_results, 1):
-            details_str = self.format_details(res.get("details", {}))
+            details_str = cls.format_details(res.get("details", {}))
             lines.append(f"{i}. {res['operation']}: {res['time_min']:.2f} min{details_str}")
         lines.append(f"TOTAL MAIN TIME: {total_main:.2f} min")
         lines.append("")
@@ -89,7 +91,7 @@ class ReportGenerator:
         total_back = sum(res["time_min"] for res in back_results)
         lines.append(f"CHANNEL 2: BACK SPINDLE")
         for i, res in enumerate(back_results, 1):
-            details_str = self.format_details(res.get("details", {}))
+            details_str = cls.format_details(res.get("details", {}))
             lines.append(f"{i}. {res['operation']}: {res['time_min']:.2f} min{details_str}")
         lines.append(f"TOTAL BACK TIME: {total_back:.2f} min")
         lines.append("")
@@ -136,8 +138,9 @@ class FileExporter:
         Returns:
             str: The full path to the saved file.
         """
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        out_path = Path(output_dir)
+        if not out_path.exists():
+            out_path.mkdir(parents=True)
 
         # Ensure filename ends with .txt
         if not filename.endswith(".txt"):
@@ -145,9 +148,9 @@ class FileExporter:
         else:
             full_filename = filename
 
-        file_path = os.path.join(output_dir, full_filename)
+        file_path = out_path / full_filename
         
-        with open(file_path, "w", encoding="utf-8") as f:
+        with file_path.open("w", encoding="utf-8") as f:
             f.write(content)
             
-        return file_path
+        return str(file_path)
