@@ -34,7 +34,7 @@ jobs:
     # --noconsole - прячет черное окно консоли при запуске (для GUI приложений)
     - name: Build with PyInstaller
       run: |
-        python -m PyInstaller --noconsole --onefile --collect-all customtkinter --add-data "assets;assets" main.py
+        python -m PyInstaller --onedir --collect-all customtkinter --add-data "assets;assets" main.py
 
     # Шаг 5: Сохраняем готовый .exe файл в артефакты GitHub
     - name: Upload Build Artifact
