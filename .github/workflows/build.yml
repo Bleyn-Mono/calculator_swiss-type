@@ -42,6 +42,4 @@ jobs:
       with:
         name: laser-calculator-windows-exe # Имя архива для скачивания
         path: |
-          dist/main.exe
-          machines_config.json
-          assets/
+          dist/main/
