@@ -8,7 +8,7 @@ import math
 from typing import Any
 from .operations import (
     FacingOp, TurningOp, MillingOp, DrillingG1Op, 
-    DrillingQOp, WhirlingOp, ThreadingOp
+    DrillingQOp, WhirlingOp, ThreadingOp, BroachOp
 )
 from .base_calculator import BaseCalculator
 from utils.config_loader import MachineConfig
@@ -150,5 +150,27 @@ class ThreadingCalculator:
             total_path,
             op.spindle_speed,
             op.feed_rate, # pitch
+            machine['rapid_traverse_mm_min']
+        )
+
+
+class BroachCalculator:
+    """Calculates time for broaching/slotting operations with multi-pass support."""
+    
+    @staticmethod
+    def calculate(op: BroachOp, machine: MachineConfig) -> float:
+        """
+        Calculates number of passes and uses milling time formula (minutely feed).
+        Broaching is a linear operation, using mm/min feed.
+        """
+        if op.cut_depth <= 0:
+            return 0.0
+            
+        passes = math.ceil(op.removal_depth / op.cut_depth)
+        total_path = op.processing_length * passes
+        
+        return BaseCalculator.calculate_milling_time(
+            total_path,
+            op.feed_rate,
             machine['rapid_traverse_mm_min']
         )

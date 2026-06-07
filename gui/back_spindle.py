@@ -8,15 +8,15 @@ from PIL import Image
 from typing import Callable, Optional, Dict, Any
 from core.session_manager import SessionManager
 from utils.config_loader import MachineConfig
-from gui.components import MathEntry
+from gui.components import MathEntry, ArcLengthDialog
 from core.operations import (
     FacingOp, TurningOp, MillingOp, DrillingG1Op, 
-    DrillingQOp, WhirlingOp, ThreadingOp
+    DrillingQOp, WhirlingOp, ThreadingOp, BroachOp
 )
 from utils.labels import PARAM_LABELS
 from core.specific_calc import (
     FacingCalculator, TurningCalculator, MillingCalculator, DrillingG1Calculator,
-    DrillingQCalculator, WhirlingCalculator, ThreadingCalculator
+    DrillingQCalculator, WhirlingCalculator, ThreadingCalculator, BroachCalculator
 )
 
 
@@ -35,6 +35,7 @@ class BackSpindleFrame(ctk.CTkFrame):
         self.session = session
         self.get_machine_config = get_machine_config
         self.editing_index: Optional[int] = None
+        self.last_focused_entry: Optional[MathEntry] = None
         
         # Drag-and-drop state
         self.dragged_item_index: Optional[int] = None
@@ -65,7 +66,7 @@ class BackSpindleFrame(ctk.CTkFrame):
         self.op_type_var = ctk.StringVar(value="Turning")
         self.op_selector = ctk.CTkOptionMenu(
             op_type_frame, 
-            values=["Facing", "Turning", "Milling", "Drilling (G1)", "Drilling (Q)", "Whirling", "Threading"],
+            values=["Facing", "Turning", "Milling", "Drilling (G1)", "Drilling (Q)", "Whirling", "Threading", "Broach"],
             variable=self.op_type_var,
             command=self._update_fields
         )
@@ -92,7 +93,43 @@ class BackSpindleFrame(ctk.CTkFrame):
         self.total_time_label = ctk.CTkLabel(self.results_container, text="TOTAL TIME: 0.00 min", font=("Arial", 14, "bold"))
         self.total_time_label.pack(pady=5)
 
+        # 3. Floating/Helper Buttons
+        self._setup_helpers()
+
+    def _setup_helpers(self) -> None:
+        """Adds utility buttons like Arc Length Calculator."""
+        helper_frame = ctk.CTkFrame(self.input_container, fg_color="transparent")
+        helper_frame.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+        
+        self.arc_btn = ctk.CTkButton(
+            helper_frame, 
+            text="📏 Arc", 
+            width=50, 
+            height=24, 
+            font=("Arial", 11),
+            command=self._open_arc_calculator
+        )
+        self.arc_btn.pack()
+
+    def _open_arc_calculator(self) -> None:
+        """Opens the arc length dialog."""
+        ArcLengthDialog(self, on_insert_callback=self._insert_arc_result)
+
+    def _insert_arc_result(self, result: float) -> None:
+        """Inserts the calculated result into the last focused entry."""
+        if self.last_focused_entry:
+            self.last_focused_entry.delete(0, 'end')
+            self.last_focused_entry.insert(0, f"{result:.4f}")
+            self.status_label.configure(text=f"Inserted arc length: {result:.4f}", text_color="green")
+        else:
+            self.status_label.configure(text="Error: Select a field first!", text_color="red")
+
+    def _on_entry_focus(self, entry: MathEntry) -> None:
+        """Callback for when a MathEntry gains focus."""
+        self.last_focused_entry = entry
+
     def _update_fields(self, op_type: str) -> None:
+
         """Dynamically creates input fields based on the selected operation."""
         # Clear existing fields
         for widget in self.fields_frame.winfo_children():
@@ -140,6 +177,12 @@ class BackSpindleFrame(ctk.CTkFrame):
                 ("spindle_speed", "Speed (RPM)"),
                 ("feed_rate", "Pitch (rev)"),
                 ("passes_count", "Passes")
+            ],
+            "Broach": [
+                ("removal_depth", "Tot Dpth (mm)"),
+                ("cut_depth", "Cut Dpth (mm)"),
+                ("processing_length", "Length (mm)"),
+                ("feed_rate", "Feed (min)")
             ]
         }
 
@@ -153,7 +196,7 @@ class BackSpindleFrame(ctk.CTkFrame):
             col = i % 5
             # Added pady=(2, 0) to avoid cutoff
             ctk.CTkLabel(self.fields_frame, text=label, font=("Arial", 11)).grid(row=row, column=col, padx=5, pady=(2, 0), sticky="w")
-            entry = MathEntry(self.fields_frame, height=28, width=70) # Changed to MathEntry
+            entry = MathEntry(self.fields_frame, height=28, width=70, on_focus_callback=self._on_entry_focus) # Changed to MathEntry
             entry.grid(row=row+1, column=col, padx=5, pady=(0, 2), sticky="w")
             self.entries[key] = entry
 
@@ -211,6 +254,9 @@ class BackSpindleFrame(ctk.CTkFrame):
                 data["passes_count"] = int(data["passes_count"])
                 op = ThreadingOp(**data, comment=comment)
                 time_min = ThreadingCalculator.calculate(op, machine_config)
+            elif op_type == "Broach":
+                op = BroachOp(**data, comment=comment)
+                time_min = BroachCalculator.calculate(op, machine_config)
 
             # Store the full operation data including comment
             res_data = data.copy()
