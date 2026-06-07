@@ -59,6 +59,18 @@ class SessionManager:
         if 0 <= index < len(self._results):
             self._results.pop(index)
 
+    def move_result(self, old_index: int, new_index: int) -> None:
+        """
+        Moves a result from one position to another.
+        
+        Args:
+            old_index (int): Original index of the result.
+            new_index (int): New target index.
+        """
+        if 0 <= old_index < len(self._results) and 0 <= new_index < len(self._results):
+            item = self._results.pop(old_index)
+            self._results.insert(new_index, item)
+
     def update_result(self, index: int, operation_name: str, processing_time: float, details: Optional[Dict[str, Any]] = None) -> None:
         """
         Updates an existing operation result in the session.

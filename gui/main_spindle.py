@@ -8,6 +8,7 @@ from PIL import Image
 from typing import Callable, Optional, Dict, Any
 from core.session_manager import SessionManager
 from utils.config_loader import MachineConfig
+from gui.components import MathEntry
 from core.operations import (
     FacingOp, TurningOp, MillingOp, DrillingG1Op, 
     DrillingQOp, WhirlingOp, ThreadingOp
@@ -34,6 +35,13 @@ class MainSpindleFrame(ctk.CTkFrame):
         self.session = session
         self.get_machine_config = get_machine_config
         self.editing_index: Optional[int] = None
+        
+        # Drag-and-drop state
+        self.dragged_item_index: Optional[int] = None
+        self.drop_target_index: Optional[int] = None
+        self.insertion_line: Optional[ctk.CTkFrame] = None
+        self.drag_start_y: int = 0
+        self.is_dragging: bool = False
         
         self._setup_ui()
 
@@ -146,7 +154,7 @@ class MainSpindleFrame(ctk.CTkFrame):
             col = i % 5
             # Added pady=(2, 0) to avoid cutoff
             ctk.CTkLabel(self.fields_frame, text=label, font=("Arial", 11)).grid(row=row, column=col, padx=5, pady=(2, 0), sticky="w")
-            entry = ctk.CTkEntry(self.fields_frame, height=28, width=70) # Fixed small width
+            entry = MathEntry(self.fields_frame, height=28, width=70) # Changed to MathEntry
             entry.grid(row=row+1, column=col, padx=5, pady=(0, 2), sticky="w") # Sticky west instead of ew
             self.entries[key] = entry
 
@@ -232,7 +240,8 @@ class MainSpindleFrame(ctk.CTkFrame):
         for widget in self.results_list_frame.winfo_children():
             widget.destroy()
         
-        for i, res in enumerate(self.session.get_results()):
+        results = self.session.get_results()
+        for i, res in enumerate(results):
             # Main block for the operation
             is_editing = (self.editing_index == i)
             bg_color = "#505050" if is_editing else "#404040"
@@ -247,13 +256,19 @@ class MainSpindleFrame(ctk.CTkFrame):
             )
             block.pack(fill="x", pady=4, padx=5)
             
-            # Make the entire block clickable for editing
-            block.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+            # Event bindings for drag-and-drop and editing
+            block.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+            block.bind("<B1-Motion>", self._on_drag_motion)
+            block.bind("<ButtonRelease-1>", self._on_drag_stop)
 
             # Icon and Content layout
             content_row = ctk.CTkFrame(block, fg_color="transparent")
             content_row.pack(fill="x", padx=5, pady=5)
-            content_row.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+            # Propagate bindings to internal widgets
+            for w in [content_row]:
+                w.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+                w.bind("<B1-Motion>", self._on_drag_motion)
+                w.bind("<ButtonRelease-1>", self._on_drag_stop)
             
             # 1. Icon (Left side)
             op_name = res['operation']
@@ -265,14 +280,18 @@ class MainSpindleFrame(ctk.CTkFrame):
                     ctk_image = ctk.CTkImage(light_image=img, dark_image=img, size=(45, 45))
                     icon_label = ctk.CTkLabel(content_row, image=ctk_image, text="")
                     icon_label.pack(side="left", padx=(5, 10))
-                    icon_label.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+                    icon_label.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+                    icon_label.bind("<B1-Motion>", self._on_drag_motion)
+                    icon_label.bind("<ButtonRelease-1>", self._on_drag_stop)
                 except Exception:
                     pass
 
             # 2. Text Content (Right of icon)
             text_container = ctk.CTkFrame(content_row, fg_color="transparent")
             text_container.pack(side="left", fill="both", expand=True)
-            text_container.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+            text_container.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+            text_container.bind("<B1-Motion>", self._on_drag_motion)
+            text_container.bind("<ButtonRelease-1>", self._on_drag_stop)
             
             # Comment
             comment = res["details"].get("comment", "")
@@ -287,12 +306,16 @@ class MainSpindleFrame(ctk.CTkFrame):
                     anchor="w"
                 )
                 comment_label.pack(fill="x", side="top", padx=2, pady=(0, 2))
-                comment_label.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+                comment_label.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+                comment_label.bind("<B1-Motion>", self._on_drag_motion)
+                comment_label.bind("<ButtonRelease-1>", self._on_drag_stop)
 
             # Top row: Type, Params | Time, Delete
             header_row = ctk.CTkFrame(text_container, fg_color="transparent")
             header_row.pack(fill="x", side="top")
-            header_row.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+            header_row.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+            header_row.bind("<B1-Motion>", self._on_drag_motion)
+            header_row.bind("<ButtonRelease-1>", self._on_drag_stop)
             
             # Format parameters string
             params = []
@@ -305,7 +328,9 @@ class MainSpindleFrame(ctk.CTkFrame):
             label_text = f"{i+1}. {op_name} ({params_str}) | {res['time_min']:.2f} min"
             info_label = ctk.CTkLabel(header_row, text=label_text, font=("Arial", 12, "bold"))
             info_label.pack(side="left")
-            info_label.bind("<Button-1>", lambda e, idx=i: self._load_operation_to_edit(idx))
+            info_label.bind("<Button-1>", lambda e, idx=i: self._on_drag_start(e, idx))
+            info_label.bind("<B1-Motion>", self._on_drag_motion)
+            info_label.bind("<ButtonRelease-1>", self._on_drag_stop)
             
             del_btn = ctk.CTkButton(
                 header_row, 
@@ -319,6 +344,102 @@ class MainSpindleFrame(ctk.CTkFrame):
             del_btn.pack(side="right")
             
         self.total_time_label.configure(text=f"TOTAL TIME: {self.session.get_total_time():.2f} min")
+
+    def _on_drag_start(self, event: Any, index: int) -> None:
+        """Initializes drag-and-drop state."""
+        self.dragged_item_index = index
+        self.drag_start_y = event.y_root
+        self.is_dragging = False
+
+    def _on_drag_motion(self, event: Any) -> None:
+        """Handles mouse movement during drag."""
+        if self.dragged_item_index is None:
+            return
+
+        # Start dragging only after moving 5 pixels to distinguish from click
+        if not self.is_dragging and abs(event.y_root - self.drag_start_y) > 5:
+            self.is_dragging = True
+            if self.insertion_line is None:
+                self.insertion_line = ctk.CTkFrame(self.results_list_frame, fg_color="#3a7ebf", height=4)
+
+        if self.is_dragging and self.insertion_line and self.insertion_line.winfo_exists():
+            # Find the target index based on mouse position
+            try:
+                y_in_scrollable = event.y_root - self.results_list_frame.winfo_rooty()
+                
+                widgets = self.results_list_frame.winfo_children()
+                # Filter out the insertion line itself and non-existing widgets
+                blocks = [w for w in widgets if w != self.insertion_line and w.winfo_exists()]
+                
+                target_idx = len(blocks)
+                for i, block in enumerate(blocks):
+                    block_mid_y = block.winfo_y() + block.winfo_height() / 2
+                    if y_in_scrollable < block_mid_y:
+                        target_idx = i
+                        break
+                
+                self.drop_target_index = target_idx
+                
+                # Update insertion line position
+                if target_idx < len(blocks):
+                    # Place line BEFORE target_idx block
+                    self.insertion_line.pack_forget()
+                    self.insertion_line.pack(fill="x", pady=2, before=blocks[target_idx])
+                else:
+                    # Place line at the end
+                    self.insertion_line.pack_forget()
+                    self.insertion_line.pack(fill="x", pady=2)
+            except Exception:
+                pass # Prevent crash during rapid UI updates
+
+    def _on_drag_stop(self, event: Any) -> None:
+        """Finalizes drag-and-drop or handles click for editing."""
+        if self.dragged_item_index is None:
+            return
+
+        if self.is_dragging:
+            # Handle drop
+            old_idx = self.dragged_item_index
+            new_idx = self.drop_target_index
+            
+            # If new_idx is same as old or old+1, no move is needed
+            # (because inserting at old or old+1 results in the same position)
+            if new_idx is not None and new_idx != old_idx and new_idx != old_idx + 1:
+                # Actual target index for insert is new_idx
+                # But if we are moving downwards, the index shifts after pop
+                actual_new_idx = new_idx
+                if new_idx > old_idx:
+                    actual_new_idx -= 1
+                
+                # 1. Update editing index if it was moved
+                if self.editing_index is not None:
+                    if self.editing_index == old_idx:
+                        self.editing_index = actual_new_idx
+                    elif old_idx < self.editing_index <= actual_new_idx:
+                        self.editing_index -= 1
+                    elif actual_new_idx <= self.editing_index < old_idx:
+                        self.editing_index += 1
+                
+                # 2. Physical move in session
+                self.session.move_result(old_idx, actual_new_idx)
+                self.status_label.configure(text=f"Moved operation from {old_idx+1} to {actual_new_idx+1}", text_color="green")
+            
+            if self.insertion_line:
+                try:
+                    self.insertion_line.destroy()
+                except Exception:
+                    pass
+                self.insertion_line = None
+            
+            self._refresh_results()
+        else:
+            # Handle click (Editing)
+            self._load_operation_to_edit(self.dragged_item_index)
+
+        # Reset state
+        self.dragged_item_index = None
+        self.drop_target_index = None
+        self.is_dragging = False
 
     def _load_operation_to_edit(self, index: int) -> None:
         """Loads an existing operation into the input fields for editing."""

@@ -110,7 +110,7 @@
 2.  **[Завершено] Шаг 2:** Функция импорта/открытия проекта из .txt.
 3.  **[Завершено] Шаг 3:** Оформление дизайна (assets, иконки, цвета).
 4.  **[Завершено] Шаг 4:** Подготовка документации для пользователя.
-5.  **[Ожидание команды] Шаг 5: Реализация Drag-and-Drop (Вариант Б)**:
+5.  **[Завершено] Шаг 5: Реализация Drag-and-Drop (Вариант Б)**:
     - Добавление метода `move_result` в `SessionManager`.
     - Разработка обработчиков событий мыши для блоков операций.
     - Реализация визуального индикатора (линии вставки) между блоками.
@@ -125,4 +125,39 @@
     - Математическая логика: `L = (π * D * α) / 360`.
     - Механизм отслеживания фокуса: сохранение ссылки на последний активный `MathEntry` перед открытием окна.
     - Кнопка "Вставить", которая закрывает окно и передает результат в целевое поле.---
+8.  **[Ожидание команды] Шаг 8: Создание новой опреации - broach**:
+    - В gui/main_spindle.py и back_spindle.py создание кнопки операции с названием Broach в выпадающем окне выбора операций в UI
+    - добавь операцию Broach в  self.op_selector 
+    - добавь операцию в field_configs - поля ввода: "removal_depth", "Tot Dpth (mm)"; "cut_depth", "Cut Dpth (mm)"; "processing_length", "Length (mm)"; "feed_rate", "Feed (rev)"
+    - в core/operations.py создай класс Broach с такими полями: removal_depth: float, cut_depth: float, processing_length: float, feed_rate: float, comment: str = ""
+    - добавь Broach в цепочку if-elif _add_operation
+    - в core.specific_calc создай BroachCalculator - вызывай calculate_milling_time из base_calculator, после вычисли passes и умнож на него как в MillingCalculator
+    - в assets/icons/ иконка называется broach.png 
+    - также: формируй строку параметров, используя красивые названия из utils/labels.py (например, превращает spindle_speed в "Speed:"); добавляй кнопку удаления ("X") и привязывай клик по блоку к функции редактирования.
+    - Регистрация в utils/labels.py - Добавить все новые уникальные ключи параметров в PARAM_LABELS. Убедиться, что название операции в списке values (в MainSpindleFrame) символьно совпадает с тем, как она записывается в файл. Убедиться, что метод format_details в ReportGenerator корректно обрабатывает новые параметры. (В текущем коде он универсален, но если добавить параметры, не являющиеся числами, логика f"{value:g}" может выдать ошибку). Если новая операция требует строго int (как passes_count в Threading), нужно убедиться, что при передаче этих данных обратно в dataclass не возникнет
+     конфликта типов.
+9.  **[Ожидание команды] Шаг 8: Создание новой опреации - groove**:
+    - В gui/main_spindle.py и back_spindle.py создание кнопки операции с названием Groove в выпадающем окне выбора операций в UI
+    - добавь операцию Groove в  self.op_selector 
+    - добавь операцию в field_configs - поля ввода: "Cutter_width", "Cut wid (mm)"; "Groove_width", "Crov wid (mm)"; "Initial_diameter", "Init diam (mm)"; "Final_diameter", "Final_diam (mm)"; "spindle_speed", "Speed (RPM)"; "feed_rate", "Feed (rev)"
+    - в core/operations.py создай класс Groove с такими полями: Cutter width: float, Groove width: float, Initial diameter: float, Final diameter: float, spindle_speed: float, feed_rate: float, comment: str = ""
+    - добавь Groove в цепочку if-elif _add_operation
+    - в base_calculator создай метод calculate_groove_time. логика расчета - радиальное движение = (Initial diameter - Final diameter)/2); T_work = (радиальное движение /(spindle_speed * feed_rate); T_rapid = (1.25 * радиальное движение) / Rapid_Traverse; T_total считать не нужно, передавай в specific_calc T_work и T_rapid
+    - в core.specific_calc создай GrooveCalculator - вызывай calculate_groove_time из base_calculator. далее если канавка шире чем резец считаем сколько раз он будет заходить в нее. Если Groove width == Cutter width тогда количестов заходов 1, если Groove width > Cutter width количество заходов = 1 + (Groove width // Cutter width). T_total = количество заходов * (T_work + T_rapid) + чистовой проход. чистовой проход = ((Initial diameter-Final diameter)+(Groove width-Cutter width))/(spindle_speed * feed_rate)   
+    - в assets/icons/ иконка называется Groove.png 
+    - также: формируй строку параметров, используя красивые названия из utils/labels.py (например, превращает spindle_speed в "Speed:"); добавляй кнопку удаления ("X") и привязывай клик по блоку к функции редактирования.
+    - Регистрация в utils/labels.py - Добавить все новые уникальные ключи параметров в PARAM_LABELS. Убедиться, что название операции в списке values (в MainSpindleFrame) символьно совпадает с тем, как она записывается в файл. Убедиться, что метод format_details в ReportGenerator корректно обрабатывает новые параметры. (В текущем коде он универсален, но если добавить параметры, не являющиеся числами, логика f"{value:g}" может выдать ошибку). Если новая операция требует строго int (как passes_count в Threading), нужно убедиться, что при передаче этих данных обратно в dataclass не возникнет
+     конфликта типов. 
+10.  **[Ожидание команды] Шаг 8: Создание новой опреации - thread milling**:
+    - В gui/main_spindle.py и back_spindle.py создание кнопки операции с названием Thread milling в выпадающем окне выбора операций в UI
+    - добавь операцию Thread milling в self.op_selector 
+    - добавь операцию в field_configs - поля ввода: "Length (mm)"; "feed_rate", "Feed (rev)"
+    - в core/operations.py создай класс thread milling с такими полями: processing_length: float, feed_rate: float, comment: str = ""
+    - добавь thread milling в цепочку if-elif _add_operation
+    - в core.specific_calc создай TreadMilling- вызывай calculate_milling_time из base_calculator, после вычисли passes и умнож на него как в MillingCalculator
+    - в assets/icons/ иконка называется broach.png 
+    - также: формируй строку параметров, используя красивые названия из utils/labels.py (например, превращает spindle_speed в "Speed:"); добавляй кнопку удаления ("X") и привязывай клик по блоку к функции редактирования.
+    - Регистрация в utils/labels.py - Добавить все новые уникальные ключи параметров в PARAM_LABELS. Убедиться, что название операции в списке values (в MainSpindleFrame) символьно совпадает с тем, как она записывается в файл. Убедиться, что метод format_details в ReportGenerator корректно обрабатывает новые параметры. (В текущем коде он универсален, но если добавить параметры, не являющиеся числами, логика f"{value:g}" может выдать ошибку). Если новая операция требует строго int (как passes_count в Threading), нужно убедиться, что при передаче этих данных обратно в dataclass не возникнет
+     конфликта типов. 
+
 *Последнее обновление: 2026-05-23*

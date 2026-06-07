@@ -26,7 +26,7 @@ class BaseCalculator:
         Formula:
         T_total = T_work + T_rapid
         T_work = L / (S * F)
-        T_rapid = (1.3 * L) / Rapid_Traverse
+        T_rapid = (1.35 * L) / Rapid_Traverse
         
         Args:
             processing_length (float): Length of the machining path in mm.
@@ -41,7 +41,7 @@ class BaseCalculator:
             return 0.0
 
         t_work = processing_length / (spindle_speed * feed_rate)
-        t_rapid = (1.3 * processing_length) / rapid_traverse
+        t_rapid = (1.35 * processing_length) / rapid_traverse
         
         return t_work + t_rapid
 
@@ -57,7 +57,7 @@ class BaseCalculator:
         Formula:
         T_total = T_work + T_rapid
         T_work = L / F_min
-        T_rapid = (1.2 * L) / Rapid_Traverse
+        T_rapid = (1.25 * L) / Rapid_Traverse
         
         Args:
             processing_length (float): Length of the machining path in mm.
@@ -71,6 +71,6 @@ class BaseCalculator:
             return 0.0
 
         t_work = processing_length / feed_min
-        t_rapid = (1.2 * processing_length) / rapid_traverse
+        t_rapid = (1.25 * processing_length) / rapid_traverse
         
         return t_work + t_rapid
